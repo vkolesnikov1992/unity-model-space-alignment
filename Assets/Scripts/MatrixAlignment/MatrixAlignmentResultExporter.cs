@@ -26,28 +26,9 @@ namespace ModelSpaceAlignment
                     group = new OffsetGroupBuilder
                     {
                         OffsetKey = CreateOffsetKey(match.Offset),
-                        Representative = match,
-                        MatchedSpaceIndices = new List<int>(),
-                        MatchedSpaceLookup = new HashSet<int>(),
-                        DetailedMatches = new List<DetailedMatch>(),
-                        DetailedMatchLookup = new HashSet<string>()
+                        Representative = match
                     };
                     groups.Add(group);
-                }
-
-                if (group.MatchedSpaceLookup.Add(match.SpaceIndex))
-                {
-                    group.MatchedSpaceIndices.Add(match.SpaceIndex);
-                }
-
-                var detailedKey = $"{match.ModelIndex}:{match.SpaceIndex}";
-                if (group.DetailedMatchLookup.Add(detailedKey))
-                {
-                    group.DetailedMatches.Add(new DetailedMatch
-                    {
-                        modelIndex = match.ModelIndex,
-                        spaceIndex = match.SpaceIndex
-                    });
                 }
             }
 
@@ -64,21 +45,10 @@ namespace ModelSpaceAlignment
 
             foreach (var group in groups)
             {
-                group.MatchedSpaceIndices.Sort();
-                group.DetailedMatches.Sort((left, right) =>
-                {
-                    var modelComparison = left.modelIndex.CompareTo(right.modelIndex);
-                    return modelComparison != 0
-                        ? modelComparison
-                        : left.spaceIndex.CompareTo(right.spaceIndex);
-                });
-
                 export.offsets.Add(new OffsetResult
                 {
                     translation = ToOffset(group.Representative.Offset),
-                    matrix = ToMatrix(group.Representative.Offset),
-                    matchedSpaceIndices = group.MatchedSpaceIndices,
-                    detailedMatches = group.DetailedMatches
+                    matrix = ToMatrix(group.Representative.Offset)
                 });
             }
 
@@ -192,10 +162,6 @@ namespace ModelSpaceAlignment
         {
             public string OffsetKey;
             public MatrixAlignmentMatch Representative;
-            public List<int> MatchedSpaceIndices;
-            public HashSet<int> MatchedSpaceLookup;
-            public List<DetailedMatch> DetailedMatches;
-            public HashSet<string> DetailedMatchLookup;
         }
 
         [Serializable]
@@ -203,15 +169,6 @@ namespace ModelSpaceAlignment
         {
             public OffsetDto translation;
             public MatrixDto matrix;
-            public List<int> matchedSpaceIndices;
-            public List<DetailedMatch> detailedMatches;
-        }
-
-        [Serializable]
-        private sealed class DetailedMatch
-        {
-            public int modelIndex;
-            public int spaceIndex;
         }
 
         [Serializable]

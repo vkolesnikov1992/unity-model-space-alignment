@@ -44,19 +44,25 @@ namespace ModelSpaceAlignment
             var resultEntity = resultQuery.GetSingletonEntity();
             var matches = state.EntityManager.GetBuffer<MatrixAlignmentMatch>(resultEntity);
             var offsetGroups = new NativeList<float4x4>(math.max(1, matches.Length), Allocator.Temp);
-            var matchedSpaceGroups = new NativeHashMap<int, int>(math.max(1, matches.Length), Allocator.Temp);
+            var offsetAnchorSpaceGroups = new NativeHashMap<int, int>(math.max(1, matches.Length), Allocator.Temp);
 
             for (var i = 0; i < matches.Length; i++)
             {
-                var groupIndex = FindOrAddOffsetGroup(ref offsetGroups, matches[i].Offset);
-                matchedSpaceGroups.TryAdd(matches[i].SpaceIndex, groupIndex);
+                var match = matches[i];
+                if (match.ModelIndex != 0)
+                {
+                    continue;
+                }
+
+                var groupIndex = FindOrAddOffsetGroup(ref offsetGroups, match.Offset);
+                offsetAnchorSpaceGroups.TryAdd(match.SpaceIndex, groupIndex);
             }
 
             var highlightedCount = 0;
             foreach (var (spaceVisual, baseColor) in
                 SystemAPI.Query<RefRO<MatrixAlignmentSpaceVisual>, RefRW<URPMaterialPropertyBaseColor>>())
             {
-                var isMatched = matchedSpaceGroups.TryGetValue(spaceVisual.ValueRO.SpaceIndex, out var groupIndex);
+                var isMatched = offsetAnchorSpaceGroups.TryGetValue(spaceVisual.ValueRO.SpaceIndex, out var groupIndex);
                 baseColor.ValueRW.Value = isMatched ? OffsetColors[groupIndex % OffsetColors.Length] : SpaceColor;
                 if (isMatched)
                 {
@@ -66,15 +72,15 @@ namespace ModelSpaceAlignment
 
             var offsetGroupCount = offsetGroups.Length;
             offsetGroups.Dispose();
-            matchedSpaceGroups.Dispose();
+            offsetAnchorSpaceGroups.Dispose();
             state.EntityManager.AddComponent<MatrixAlignmentVisualizedTag>(resultEntity);
             if (highlightedCount == 0)
             {
-                Debug.LogWarning("Matrix alignment completed, but no space cubes were highlighted because no matches were found.");
+                Debug.LogWarning("Matrix alignment completed, but no offset anchor cubes were highlighted because no matches were found.");
             }
             else
             {
-                Debug.Log($"Highlighted {highlightedCount} matched space cubes across {offsetGroupCount} offset groups.");
+                Debug.Log($"Highlighted {highlightedCount} offset anchor cubes across {offsetGroupCount} offset groups.");
             }
         }
 
